@@ -1,0 +1,70 @@
+plugins {
+    id 'groovy'
+    id 'java'
+}
+
+group 'org.example'
+version '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile 'org.codehaus.groovy:groovy-all:2.3.11'
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+}
+
+
+
+
+
+def path = new File(System.getProperty("user.dir")).toPath()
+
+
+FileTree chartTree = fileTree(dir: '.')
+chartTree.include '**/Chart.yaml'
+
+chartTree.each { File file ->
+    tasks.create(name: "helm-${file.getParentFile().getName()}") {
+        group = "helm"
+        doLast {
+            testHelmChart(file.toPath().getParent())
+        }
+    }
+
+}
+
+void testHelmChart(java.nio.file.Path path) {
+    Process proc = "helm template --namespace test ${path.toString()}".execute()
+
+    def out = new StringBuffer()
+    def err = new StringBuffer()
+    proc.consumeProcessOutput(out, err)
+    def exit = proc.waitFor()
+    if (exit != 0)
+        throw new GradleException("Template failed: ${exit}, out: ${out}, err: ${err}")
+    def template = out
+    println out
+
+    proc = "helm lint --namespace test ${path.toString()}".execute()
+    out = new StringBuffer()
+    err = new StringBuffer()
+    proc.consumeProcessOutput(out, err)
+    exit = proc.waitFor()
+    if (exit != 0)
+        throw new GradleException("Linting failed: ${exit}, out: ${out}, err: ${err}")
+    println "${out}"
+
+    File f = File.createTempFile("dryrun", ".yaml")
+    f << template
+    proc = "kubectl apply --validate=true --dry-run=true -f ${f.getPath()}".execute()
+
+    out = new StringBuffer()
+    err = new StringBuffer()
+    proc.consumeProcessOutput(out, err)
+    exit = proc.waitFor()
+    if (exit != 0)
+        throw new GradleException("Dryrun failed: ${exit}, out: ${out}, err: ${err}")
+    println "${out}"
+}

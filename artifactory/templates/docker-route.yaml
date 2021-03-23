@@ -1,0 +1,19 @@
+{{- if .Values.docker.enabled }}
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: {{ template "app.name" . }}-docker
+  labels: {{ include "app.labels" . | indent 4 }}
+spec:
+  host: wildcard.{{ .Values.ingress.host }}
+  to:
+    kind: Service
+    name: {{ template "app.name" . }}-docker
+    weight: 100
+  tls:
+    termination: passthrough
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: Subdomain
+status:
+  ingress: []
+{{- end }}

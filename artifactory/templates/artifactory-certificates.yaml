@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ template "app.name" . }}-tls
+  labels: {{ include "app.labels" . | indent 4 }}
+type: kubernetes.io/tls
+data:
+  tls.crt: {{ .Values.tls.certificate }}
+  tls.key: {{ .Values.tls.key }}
+{{- if .Values.tls.intermediate }}
+  int.crt: {{ .Values.tls.intermediate}}
+{{- end }}

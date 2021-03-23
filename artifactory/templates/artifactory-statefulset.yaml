@@ -1,0 +1,134 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ template "app.name" . }}
+  labels: {{ include "app.labels" . | indent 4 }}
+spec:
+  serviceName: {{ template "app.name" . }}
+  replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels: {{ include "app.selector" . | indent 6 }}
+  template:
+    metadata:
+      labels: {{ include "app.selector" . | indent 8 }}
+    spec:
+      securityContext:
+        runAsUser: 1030
+        fsGroup: 1030
+      initContainers:
+      - name: "remove-lost-found"
+        image: "{{ .Values.initContainer.image }}:{{ .Values.initContainer.tag }}"
+        imagePullPolicy: {{ .Values.initContainer.pullPolicy }}
+        command:
+        - 'sh'
+        - '-c'
+        - 'rm -rfv {{ .Values.storage.mountPath }}/lost+found {{ .Values.storage.mountPath }}/data/.lock'
+        volumeMounts:
+        - mountPath: {{ .Values.storage.mountPath | quote }}
+          name: artifactory-volume
+      containers:
+      - name: artifactory
+        securityContext:
+          allowPrivilegeEscalation: false
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        command:
+        - 'bin/sh'
+        - '-ec'
+        - |
+          rm -rf /opt/jfrog/artifactory/tomcat/conf/Catalina/localhost/artifactory.xml
+          rm -rf /opt/jfrog/artifactory/tomcat/webapps/ROOT/
+          rm -rf /opt/jfrog/artifactory/tomcat/webapps/artifactory
+{{- if .Values.docker.enabled }}
+          /usr/bin/openssl pkcs12 -export -name cert -in /opt/jfrog/artifactory/certs-docker/tls.crt -inkey /opt/jfrog/artifactory/certs-docker/tls.key -nodes -out {{ .Values.storage.mountPath }}/keystore-docker.p12 -passout pass:
+          /usr/bin/keytool -importkeystore -destkeystore {{ .Values.storage.mountPath }}/docker.jks -srckeystore {{ .Values.storage.mountPath }}/keystore-docker.p12 -srcstoretype pkcs12 -alias cert -srcstorepass '' -noprompt -storepass tomcat
+          /usr/bin/keytool -keypasswd -keypass '' -new tomcat -keystore {{ .Values.storage.mountPath }}/docker.jks -alias cert -storepass tomcat
+{{- end }}
+          /usr/bin/openssl pkcs12 -export -name cert -in /opt/jfrog/artifactory/certs/tls.crt -inkey /opt/jfrog/artifactory/certs/tls.key -nodes -out {{ .Values.storage.mountPath }}/keystore.p12 -passout pass:
+          /usr/bin/keytool -importkeystore -destkeystore {{ .Values.storage.mountPath }}/webapp.jks -srckeystore {{ .Values.storage.mountPath }}/keystore.p12 -srcstoretype pkcs12 -alias cert -srcstorepass '' -noprompt -storepass tomcat
+          /usr/bin/keytool -keypasswd -keypass '' -new tomcat -keystore {{ .Values.storage.mountPath }}/webapp.jks -alias cert -storepass tomcat
+          /entrypoint-artifactory.sh
+        env:
+        - name: RANDFILE
+          value: '{{ .Values.storage.mountPath }}/.rnd'
+        - name: DB_TYPE
+          value: 'postgresql'
+        - name: DB_USER
+          value: {{.Values.postgresql.user | quote }}
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ template "app.name" . }}-password
+              key: db-password
+        - name: DB_URL
+          value: {{ .Values.postgresql.url }}
+        - name: EXTRA_JAVA_OPTIONS
+          value: "-XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap -XX:MaxRAMFraction=1"
+        ports:
+        - containerPort: 8081
+        - containerPort: 8082
+        volumeMounts:
+        - name: artifactory-volume
+          mountPath: {{ .Values.storage.mountPath | quote }}
+        - name: tls
+          mountPath: /opt/jfrog/artifactory/certs
+        - name: tls-docker
+          mountPath: /opt/jfrog/artifactory/certs-docker
+        - name: tls-config
+          mountPath: /opt/jfrog/artifactory/tomcat/conf/server.xml
+          subPath: server.xml
+        resources:
+{{ toYaml .Values.resources | indent 10 }}
+    {{- with .Values.nodeSelector }}
+        readinessProbe:
+          httpGet:
+            path: '/webapp/#/login'
+            port: 8081
+            scheme: HTTPS
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 10
+          failureThreshold: 6
+          successThreshold: 1
+        livenessProbe:
+          httpGet:
+            path: '/webapp/#/login'
+            port: 8081
+            scheme: HTTPS
+          initialDelaySeconds: 180
+          periodSeconds: 10
+          timeoutSeconds: 10
+          failureThreshold: 3
+          successThreshold: 1
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.affinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+      volumes:
+        - name: tls
+          secret:
+            secretName: {{ template "app.name" . }}-tls
+        - name: tls-docker
+          secret:
+            secretName: {{ template "app.name" . }}-tls-docker
+        - name: tls-config
+          configMap:
+            name: {{ template "app.name" . }}-tls-config
+  volumeClaimTemplates:
+  - metadata:
+      name: artifactory-volume
+    spec:
+      storageClassName: "{{ .Values.storage.class }}"
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: {{ .Values.storage.size }}

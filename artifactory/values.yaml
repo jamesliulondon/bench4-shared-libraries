@@ -1,0 +1,54 @@
+id: test
+initContainer:
+  image: alpine
+  tag: 3.6
+  pullPolicy: IfNotPresent
+
+image:
+  repository: "gitlab/gitlab-ce"
+  pullPolicy: IfNotPresent
+  tag: 6.7.0
+
+service:
+  type: ClusterIP
+  annotations: {}
+
+storage:
+  mountPath: "/var/opt/jfrog/artifactory"
+  class: generic
+  size: 100Gi
+
+resources:
+  requests:
+    memory: 2Gi
+    cpu: 500m
+  limits:
+    memory: 2Gi
+
+nodeSelector:
+  region: infra
+
+tolerations: []
+
+affinity: {}
+
+postgresql:
+  user: artifactory
+  password: ""
+  url: postgres.fqdn
+
+ingress:
+  enabled: true
+  host: artifactory.apps.oc1.nwsl.site
+
+tls:
+  certificate: --CERTIFICATE
+  key: --KEY
+  intermediate: --INTERMEDIATE
+
+docker:
+  enabled: true
+  tls:
+    certificate: --CERTIFICATE
+    key: --KEY
+    intermediate: --INTERMEDIATE
