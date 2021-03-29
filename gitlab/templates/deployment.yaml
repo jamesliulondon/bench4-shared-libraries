@@ -86,8 +86,8 @@ spec:
           persistentVolumeClaim:
             claimName: {{ template "gitlab.fullname" . }}-etc
         {{- else }}
-          emptyDir:
-            sizeLimit: "2Gi"
+          emptyDir: {}
+
 
 
   {{- end}}
