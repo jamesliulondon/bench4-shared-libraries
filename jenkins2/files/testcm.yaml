@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: testcm
+data:
+  file1.txt: {{ (.Files.Get "SharedLibrariesConfig") | quote }}
+  file2.txt: "there"
+

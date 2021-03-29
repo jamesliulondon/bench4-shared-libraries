@@ -244,6 +244,18 @@ controller:
     #      systemMessage: Welcome to our CI\CD server.  This Jenkins is configured and managed 'as code'.
     # Ignored if securityRealm is defined in controller.JCasC.configScripts and
     # ignored if controller.enableXmlConfig=true as controller.securityRealm takes precedence
+    unclassified: |-
+      globalLibraries:
+        libraries:
+          - defaultVersion: "master"
+            implicit: true
+            name: "bench"
+            retriever:
+              modernSCM:
+                scm:
+                  git:
+                    id: "bench4"
+                    remote: "http://gitlab.default.svc.cluster.local/jamesliulondon/bench4-shared-libraries.git"
     securityRealm: |-
       local:
         allowsSignup: false

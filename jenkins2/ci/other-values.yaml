@@ -85,6 +85,7 @@ agent:
     - type: EmptyDir
       mountPath: /var/myapp/myemptydir
       memory: false
+      size: 2Gi
 serviceAccount:
   annotations:
     description: "Used by release {{ .Release.Name }} for role-based access control"

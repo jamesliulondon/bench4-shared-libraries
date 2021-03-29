@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    app: nginx
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+        - image: fedora
+          name: test
+          resources:
+            limits:
+              memory: 300Mi
+            requests:
+              memory: 100Mi
+          command: ['sh', '-c', 'echo "Hello, Kubernetes!" && sleep 3600']
+          volumeMounts:
+            - name: "config"
+              mountPath: "/file1.txt"
+              subPath: "file1.txt"
+            - name: "config"
+              mountPath: "/file2.txt"
+              subPath: "file2.txt"
+      volumes:
+        - name: "config"
+          configMap:
+            name: "testcm"

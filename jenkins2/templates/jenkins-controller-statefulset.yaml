@@ -240,6 +240,9 @@ spec:
               mountPath: /run/secrets/chart-admin-password
               subPath: {{ .Values.controller.admin.passwordKey | default "jenkins-admin-password" }}
               readOnly: true
+            - name: shared-libraries-config
+              mountPath: /var/jenkins_home/org.jenkinsci.plugins.workflow.libs.GlobalLibraries.xml
+              subPath: GlobalLibraries.txt
             {{- end }}
 
 {{- if .Values.controller.sidecars.configAutoReload.enabled }}
@@ -297,6 +300,12 @@ spec:
       - name: jenkins-config
         configMap:
           name: {{ template "jenkins.fullname" . }}
+      - name: shared-libraries-config
+        configMap:
+          name: config-files
+          items:
+          - key: GlobalLibraries
+            path: GlobalLibraries.txt
       {{- if .Values.controller.installPlugins }}
       - name: plugin-dir
         emptyDir: {}
@@ -312,7 +321,6 @@ spec:
       {{- end }}
       - name: sc-config-volume
         emptyDir: {}
-
       {{- if .Values.controller.httpsKeyStore.enable }}
       - name: jenkins-https-keystore
         secret:

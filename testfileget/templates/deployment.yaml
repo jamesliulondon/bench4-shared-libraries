@@ -1,16 +1,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "jenkins2.fullname" . }}
+  name: {{ include "testfileget.fullname" . }}
   labels:
-    {{- include "jenkins2.labels" . | nindent 4 }}
+    {{- include "testfileget.labels" . | nindent 4 }}
 spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
   selector:
     matchLabels:
-      {{- include "jenkins2.selectorLabels" . | nindent 6 }}
+      {{- include "testfileget.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -18,13 +18,13 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        {{- include "jenkins2.selectorLabels" . | nindent 8 }}
+        {{- include "testfileget.selectorLabels" . | nindent 8 }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "jenkins2.serviceAccountName" . }}
+      serviceAccountName: {{ include "testfileget.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
@@ -35,13 +35,29 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
-              containerPort: 8080
+              containerPort: 80
               protocol: TCP
-            - name: consoleport
-              containerPort: 5000
-              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+          - name: "config"
+            mountPath: "/file1.txt"
+            subPath: "file1.txt"
+      volumes:
+      - name: "config"
+        configMap:
+          name: testcm2-configmap
+          items:
+            - key: file1
+              path: file1.txt
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
