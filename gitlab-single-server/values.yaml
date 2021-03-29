@@ -1,11 +1,11 @@
-# Default values for gitlab.
+# Default values for gitlab-single-server.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
 replicaCount: 1
 
 image:
-  repository: 'gitlab/gitlab-ce'
+  repository: "gitlab/gitlab-ee"
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: "latest"
@@ -23,6 +23,10 @@ serviceAccount:
   # If not set and create is true, a name is generated using the fullname template
   name: ""
 
+persistance:
+  enabled: false
+  gitlab_home: /srv
+
 podAnnotations: {}
 
 podSecurityContext: {}
@@ -38,7 +42,9 @@ securityContext: {}
 
 service:
   type: ClusterIP
-  port: 80
+  clear_port: 80
+  ssl_port: 443
+  ssh_port: 22
 
 ingress:
   enabled: false
@@ -81,56 +87,3 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
-
-
-persistence:
-  ## This volume persists generated configuration files, keys, and certs.
-  ##
-  gitlabEtc:
-    enabled: false
-    size: 1Gi
-    ## If defined, volume.beta.kubernetes.io/storage-class: <storageClass>
-    ## Default: volume.alpha.kubernetes.io/storage-class: default
-    ##
-    # storageClass:
-    accessMode: ReadWriteOnce
-  ## This volume is used to store git data and other project files.
-  ## ref: https://docs.gitlab.com/omnibus/settings/configuration.html#storing-git-data-in-an-alternative-directory
-  ##
-  gitlabData:
-    enabled: true
-    size: 10Gi
-    ## If defined, volume.beta.kubernetes.io/storage-class: <storageClass>
-    ## Default: volume.alpha.kubernetes.io/storage-class: default
-    ##
-    # storageClass:
-    accessMode: ReadWriteOnce
-
-## Configuration values for the postgresql dependency.
-## ref: https://github.com/kubernetes/charts/blob/master/stable/postgresql/README.md
-##
-postgresql:
-  # 9.6 is the newest supported version for the GitLab container
-  imageTag: "9.6"
-  cpu: 1000m
-  memory: 1Gi
-  postgresUser: gitlab
-  postgresPassword: gitlab
-  postgresDatabase: gitlaba
-  persistence:
-    size: 10Gi
-
-## Configuration values for the redis dependency.
-## ref: https://github.com/kubernetes/charts/blob/master/stable/redis/README.md
-##
-redis:
-  redisPassword: "gitlab"
-  resources:
-    requests:
-      memory: 1Gi
-  persistence:
-    size: 10Gi
-
-
-# externalUrl: http://your-domain.com/
-gitlabRootPassword: "password"

@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "gitlab-single-server.fullname" . }}
+  labels:
+    {{- include "gitlab-single-server.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.clear_port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+    - port: {{ .Values.service.ssl_port }}
+      targetPort: https
+      protocol: TCP
+      name: https
+    - port: {{ .Values.service.ssh_port }}
+      targetPort: tcp
+      protocol: TCP
+      name: ssh
+  selector:
+    {{- include "gitlab-single-server.selectorLabels" . | nindent 4 }}
